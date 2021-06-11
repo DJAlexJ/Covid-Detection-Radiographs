@@ -1,5 +1,6 @@
 import numba
 from numba import jit
+import numpy as np
 
 from config import DefaultConfig
 
@@ -10,7 +11,7 @@ def calculate_iou(gt, pr, form='pascal_voc') -> float:
 
     Args:
         gt: (np.ndarray[Union[int, float]]) coordinates of the ground-truth box
-        pr: (np.ndarray[Union[int, float]]) coordinates of the prdected box
+        pr: (np.ndarray[Union[int, float]]) coordinates of the predicted box
         form: (str) gt/pred coordinates format
             - pascal_voc: [xmin, ymin, xmax, ymax]
             - coco: [xmin, ymin, w, h]

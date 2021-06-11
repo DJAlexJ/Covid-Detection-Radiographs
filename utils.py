@@ -7,14 +7,15 @@ from torch.utils.data import Dataset,DataLoader
 import augmentations as aug
 
 from dataset import CustomDataset
+from config import DefaultConfig
 
 
 def get_train_file_path(image_id):
-    return "./data512/train/{}.png".format(image_id)
+    return f"{DefaultConfig.train_dir}{image_id}.png"
 
 
 def get_test_file_path(image_id):
-    return "./data512/test/{}.png".format(image_id)
+    return f"{DefaultConfig.test_dir}{image_id}.png"
 
 
 def get_train_dataset(fold_number, df_folds, train):

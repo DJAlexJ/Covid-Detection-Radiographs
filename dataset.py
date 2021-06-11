@@ -28,16 +28,14 @@ class CustomDataset(Dataset):
         target['image_id'] = torch.tensor([index])
 
         if self.transforms:
-            for i in range(10):
-                sample = self.transforms(**{
-                    'image': image,
-                    'bboxes': target['boxes'],
-                    'labels': labels
-                })
-                if len(sample['bboxes']) > 0:
-                    image = sample['image']
-                    target['boxes'] = torch.stack(tuple(map(torch.tensor, zip(*sample['bboxes'])))).permute(1, 0)
-                    break
+            sample = self.transforms(**{
+                'image': image,
+                'bboxes': target['boxes'],
+                'labels': labels
+            })
+            image = sample['image']
+            target['boxes'] = torch.stack(tuple(map(torch.tensor, zip(*sample['bboxes'])))).permute(1, 0)
+            
         return image, target, image_id
 
     def __len__(self) -> int:

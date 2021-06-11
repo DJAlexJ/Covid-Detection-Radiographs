@@ -41,7 +41,7 @@ from numba import jit
 from config import DefaultConfig, TrainGlobalConfig
 from dataset import CustomDataset
 from augmentations import get_train_transforms, get_valid_transforms
-from models import FasterRCNNDetector, get_model
+from models import FasterRCNNDetector, get_faster_rcnn, get_efficient_det
 from metrics import *
 import utils
 
@@ -63,24 +63,25 @@ class Fitter:
         self.device = device
 
         param_optimizer = list(self.model.named_parameters())
-        no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
-        optimizer_grouped_parameters = [
-            {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.001},
-            {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
-        ]
-
-        # get the configured optimizer
-        if Adam:
-            self.optimizer = torch.optim.Adam(self.model.parameters(), **Adam_config)
-        else:
-            self.optimizer = torch.optim.SGD(self.model.parameters(), **SGD_config)
-
+#         no_decay = ['bias', 'LayerNorm.bias', 'LayerNorm.weight']
+#         optimizer_grouped_parameters = [
+#             {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay': 0.001},
+#             {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay': 0.0}
+#         ]
+        
+#         print(optimizer_grouped_parameters)
+        # get the configured optimizer & scheduler
+        self.optimizer = config.OptimizerClass(self.model.parameters(), 
+#                                                optimizer_grouped_parameters, 
+                                               **config.optimizer_params
+                                              )
         self.scheduler = config.SchedulerClass(self.optimizer, **config.scheduler_params)
+        
         self.log(f'Fitter prepared. Device is {self.device}')
         self.log(f'Fold num is {DefaultConfig.fold_num}')
 
     def fit(self, train_loader, validation_loader):
-        for e in range(self.config.n_epochs):
+        for _ in range(self.config.n_epochs):
             if self.config.verbose:
                 lr = self.optimizer.param_groups[0]['lr']
                 timestamp = datetime.utcnow().isoformat()
@@ -89,7 +90,7 @@ class Fitter:
             t = time.time()
             summary_loss = self.train_one_epoch(train_loader)
 
-            if e == 0:
+            if self.epoch == 0:
                 self.best_summary_loss = summary_loss.avg
 
             self.log(
@@ -102,7 +103,6 @@ class Fitter:
             self.log(
                 f'[RESULT]: Val. Epoch: {self.epoch}, summary_loss: {summary_loss.avg:.5f}, image_precision: {eval_scores.avg:.5f}, time: {(time.time() - t):.5f}')
 
-            # if summary_loss.avg < self.best_summary_loss:
             if eval_scores.avg > self.best_score:
                 self.best_summary_loss = summary_loss.avg
                 self.best_score = eval_scores.avg
@@ -120,8 +120,6 @@ class Fitter:
     def validation(self, val_loader):
         self.model.eval()
 
-        # model.eval() mode --> it will return boxes and scores.
-        # in this part, just print train_loss
         summary_loss = AverageMeter()
         summary_loss.update(self.best_summary_loss, self.config.batch_size)
 
@@ -142,13 +140,21 @@ class Fitter:
                 images = torch.stack(images)
                 batch_size = images.shape[0]
                 images = images.to(self.device).float()
-                labels = [target['labels'].float() for target in targets]
+                boxes = [target['boxes'].to(self.device).float() for target in targets]
+                labels = [target['labels'].to(self.device).float() for target in targets]
+                
+                if TrainGlobalConfig.model_name == 'faster_rcnn':
+                    outputs = self.model(images)
+#                 elif TrainGlobalConfig.model_name == 'eff_det':
+                    
+#                     target_eff = {}
+#                     target_eff['bbox'] = boxes
+#                     target_eff['cls'] = labels 
+#                     target_eff["img_scale"] = None # torch.tensor([1.0] * batch_size, dtype=torch.float).to(self.device)
+#                     target_eff["img_size"] = None # torch.tensor([images[0].shape[-2:]] * batch_size, dtype=torch.float).to(self.device)
 
-                """
-                In model.train() mode, model(images)  is returning losses.
-                We are using model.eval() mode --> it will return boxes and scores. 
-                """
-                outputs = self.model(images)
+#                     output = self.model(images, target_eff)
+#                     loss = output['loss']
 
                 for i, image in enumerate(images):
                     gt_boxes = targets[i]['boxes'].data.cpu().numpy()
@@ -183,11 +189,21 @@ class Fitter:
             labels = [target['labels'].to(self.device).float() for target in targets]
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
-            self.optimizer.zero_grad()
+            self.optimizer.zero_grad()            
+            
+            if TrainGlobalConfig.model_name == 'eff_det':
+                target_eff = dict()
+                target_eff['bbox'] = boxes
+                target_eff['cls'] = labels 
+                target_eff["img_scale"] = None #torch.tensor([1.0] * batch_size, dtype=torch.float).to(self.device)
+                target_eff["img_size"] = None #torch.tensor([images[0].shape[-2:]] * batch_size, dtype=torch.float).to(self.device)
 
-            outputs = self.model(images, targets)
-
-            loss = sum(loss for loss in outputs.values())
+                output = self.model(images, target_eff)
+                loss = output['loss']
+                
+            elif TrainGlobalConfig.model_name == 'faster_rcnn':
+                outputs = self.model(images, targets)
+                loss = sum(loss for loss in outputs.values())
 
             loss.backward()
 
@@ -226,7 +242,7 @@ class Fitter:
 
 
 def run_training(net, fold=0, df_folds=None, train=None):
-    net.to(device)
+    net = net.to(device)
 
     train_dataset = utils.get_train_dataset(fold_number=fold,
                                             df_folds=df_folds,
@@ -251,32 +267,27 @@ def run_training(net, fold=0, df_folds=None, train=None):
 
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '7'
-device = torch.device(DefaultConfig.device) if torch.cuda.is_available() else torch.device('cpu')
-
-Adam = False
-if Adam:
-    Adam_config = {"lr": 0.001, "betas": (0.9, 0.999), "eps": 1e-08}
-else:
-    SGD_config = {"lr": 0.001, "momentum": 0.9, "weight_decay": 0.001}
-
+device = torch.device(DefaultConfig.device)
 utils.seed_everything(DefaultConfig.seed)
 
-df = pd.read_csv('./data/updated_train_labels.csv')
+df = pd.read_csv(DefaultConfig.df_path)
 df['jpg_path'] = df['id'].apply(utils.get_train_file_path)
 train = df.copy()
 
 df_folds = train.copy()
-skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=DefaultConfig.seed)
+skf = StratifiedKFold(n_splits=DefaultConfig.n_folds, shuffle=True, random_state=DefaultConfig.seed)
 
 # Готовим фолды
 for n, (train_index, val_index) in enumerate(skf.split(X=df_folds.index, y=df_folds.integer_label)):
-    df_folds.loc[df_folds.iloc[val_index].index, 'fold'] = int(n)
+    df_folds.loc[df_folds.iloc[val_index].index, 'fold'] = n
 
 df_folds['fold'] = df_folds['fold'].astype(int)
+df_folds.set_index('id', inplace=True)
 
-df_folds = df_folds.set_index('id')
-
-net = get_model(pretrained=True)
+if TrainGlobalConfig.model_name == 'eff_det':
+    net = get_efficient_det(pretrained=True)
+elif TrainGlobalConfig.model_name == 'faster_rcnn':
+    net = get_faster_rcnn(pretrained=True)
 
 run_training(net,
              fold=DefaultConfig.fold_num,
