@@ -31,8 +31,8 @@ class ClassificationTrainer:
     ):
         self.model = timm.create_model(model, pretrained=True).cuda()
         self.optimizer = optimizer(self.model.parameters(), **config.optimizer_params)
+        self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=0.85)
         self.criterion = criterion
-        self.scheduler = scheduler
         self.config = config
         self.logger = Logger(config.logdir + f"/{fold}")
         self.fold = fold
@@ -56,6 +56,7 @@ class ClassificationTrainer:
             self.train_one_epoch(i, self.train_loader)
             save_checkpoint(i, self.model, self.optimizer, self.config, fold)
             self.validate_one_epoch(i, self.val_loader)
+            self.scheduler.step()
 
     def train_one_epoch(self, epoch: int, loader: DataLoader):
         print(f'Training at epoch: {epoch}')
