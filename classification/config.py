@@ -31,4 +31,4 @@ class SwinTrainConfig:
     loader_params: Dict[str, Union[int, float, Callable]] = {
         'batch_size': 4, 'num_workers': 0, 'shuffle': True
     }
-    logdir: str = "swinlogs/"
+    logdir: str = "swinlogs2/"
