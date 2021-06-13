@@ -10,6 +10,7 @@ from torch import optim
 import pandas as pd
 import numpy as np
 import os
+from sklearn.model_selection import StratifiedKFold
 
 from torch.utils.data import Dataset
 import cv2
@@ -78,7 +79,9 @@ class ClassificationDataset(Dataset):
 
 def get_train_val_split(config):
     data = pd.read_csv(config.csv_file)
-    return data, None
+    fold_num = config.fold_num
+    col = f"fold{fold_num}"
+    return data[data[col]=='train'], data[data[col]=='val']
 
 
 class Logger(object):
@@ -101,6 +104,4 @@ def save_checkpoint(epoch, model, optimizer, cfg, fold):
     }
     filename = cfg.base_name.format(fold=fold, epoch=epoch)
     checkpoint_dir = cfg.checkpoint_dir
-    if checkpoint_dir[-1] != '/':
-        checkpoint_dir += '/'
-    torch.save(state, checkpoint_dir + filename)
+    torch.save(state, checkpoint_dir.format(filename=filename))
