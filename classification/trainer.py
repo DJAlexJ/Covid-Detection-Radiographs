@@ -27,9 +27,13 @@ class ClassificationTrainer:
         criterion,
         config: DefaultConfig,
         scheduler=None,
-        fold: int = 0
+        fold: int = 0,
+        num_classes: int = 4
     ):
         self.model = timm.create_model(model, pretrained=True).cuda()
+        in_features = self.model.head.in_features
+        self.model.head = nn.Linear(in_features, num_classes)
+    
         self.optimizer = optimizer(self.model.parameters(), **config.optimizer_params)
         self.scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=1, gamma=0.85)
         self.criterion = criterion
