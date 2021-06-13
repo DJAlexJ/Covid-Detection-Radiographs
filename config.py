@@ -1,6 +1,7 @@
 import torch
 import torch.optim
 
+
 class DefaultConfig:
     train_dir: str = "./data512/train/"
     test_dir: str = "./data512/test/"
