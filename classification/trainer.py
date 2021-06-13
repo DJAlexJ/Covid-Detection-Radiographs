@@ -34,7 +34,7 @@ class ClassificationTrainer:
         self.criterion = criterion
         self.scheduler = scheduler
         self.config = config
-        self.logger = Logger(config.logdir)
+        self.logger = Logger(config.logdir + f"/{fold}")
         self.fold = fold
 
     def get_loader(self, config):
