@@ -27,6 +27,7 @@ class ClassificationTrainer:
         criterion,
         config: DefaultConfig,
         scheduler=None,
+        fold: int = 0
     ):
         self.model = timm.create_model(model, pretrained=True).cuda()
         self.optimizer = optimizer(self.model.parameters(), **config.optimizer_params)
@@ -34,9 +35,10 @@ class ClassificationTrainer:
         self.scheduler = scheduler
         self.config = config
         self.logger = Logger(config.logdir)
+        self.fold = fold
 
     def get_loader(self, config):
-        train_data, val_data = get_train_val_split(config)
+        train_data, val_data = get_train_val_split(config.csv_file, self.fold)
         train_dataset = ClassificationDataset(
                 train_data, get_train_transforms(config.img_size)
         )
@@ -107,3 +109,4 @@ class ClassificationTrainer:
                             Epoch=epoch,
                             Val_acc=val_acc,
                             LR=self.optimizer.param_groups[0]['lr'])
+            tk0.update(1)

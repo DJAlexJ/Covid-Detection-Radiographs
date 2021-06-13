@@ -77,10 +77,9 @@ class ClassificationDataset(Dataset):
         return image, label
 
 
-def get_train_val_split(config):
-    data = pd.read_csv(config.csv_file)
-    fold_num = config.fold_num
-    col = f"fold{fold_num}"
+def get_train_val_split(data_dir, fold):
+    data = pd.read_csv(data_dir)
+    col = f"fold{fold}"
     return data[data[col]=='train'], data[data[col]=='val']
 
 
