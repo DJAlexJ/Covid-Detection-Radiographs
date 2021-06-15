@@ -1,12 +1,15 @@
 import argparse
 import os
 
-from trainer import ClassificationTrainer
-from config import SwinTrainConfig as cfg
 import torch
 import torch.nn as nn
 import timm
 import pandas as pd
+
+from models import BaseModel
+from trainer import ClassificationTrainer
+from config import SwinTrainConfig as cfg
+
 
 if __name__ == '__main__':
 
@@ -18,9 +21,12 @@ if __name__ == '__main__':
     device = args.device
     os.environ['CUDA_VISIBLE_DEVICES'] = device
 
-    model = 'swin_large_patch4_window12_384'
+    model_name = 'swin_large_patch4_window12_384'
+    model = BaseModel(model_name, num_classes=4, pretrained=True)
     criterion = nn.CrossEntropyLoss()
-    optimizer = cfg.optimizer
+    optimizer = cfg.optimizer(model.parameters(), **cfg.optimizer_params)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1, gamma=0.85)
+
     trainer = ClassificationTrainer(model, optimizer, criterion,
                                     cfg, fold=fold)
     n_epochs = cfg.n_epochs
