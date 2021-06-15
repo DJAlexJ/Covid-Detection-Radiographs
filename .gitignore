@@ -131,3 +131,7 @@ dmypy.json
 
 *.pth
 *tfevents*
+classfication/data
+*.zip
+data
+*.ipynb

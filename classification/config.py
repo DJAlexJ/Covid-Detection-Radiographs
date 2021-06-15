@@ -27,7 +27,7 @@ class SwinTrainConfig:
     checkpoint_dir: str = '/home/almokhov/covid/Covid-Detection-Radiographs/classification/checkpoints/{filename}'
     base_name: str = 'swin_classifier_nfold_{fold}_epoch_{epoch}.pth'
     optimizer: optim = optim.SGD
-    optimizer_params: Dict[str, Any] = {'lr': 0.01, 'momentum': 0.9}
+    optimizer_params: Dict[str, Any] = {'lr': 0.0001, 'momentum': 0.9}
     loader_params: Dict[str, Union[int, float, Callable]] = {
         'batch_size': 4, 'num_workers': 0, 'shuffle': True
     }
