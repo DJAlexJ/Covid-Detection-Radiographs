@@ -48,7 +48,7 @@ def get_train_data_loader(train_dataset, batch_size=16):
     return DataLoader(
         train_dataset,
         batch_size=batch_size,
-        shuffle=False,
+        shuffle=True,
         num_workers=4,
         collate_fn=collate_fn
     )
@@ -58,7 +58,7 @@ def get_validation_data_loader(valid_dataset, batch_size=16):
     return DataLoader(
         valid_dataset,
         batch_size=batch_size,
-        shuffle=False,
+        shuffle=True,
         num_workers=4,
         collate_fn=collate_fn
     )

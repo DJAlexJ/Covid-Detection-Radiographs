@@ -50,6 +50,7 @@ class DetectionTrainer:
         data['jpg_path'] = data['id'].apply(get_train_file_path)
         data.loc[data.human_label.isin(['atypical', 'indeterminate', 'typical']), 'integer_label'] = 1
         data.loc[data.human_label == 'negative', 'integer_label'] = 0
+        data = data[data.human_label != 'negative']
         train = data.copy()
 
         df_folds = train.copy()
@@ -130,7 +131,7 @@ class DetectionTrainer:
     def validate_one_epoch(self, epoch, loader):
         self.losses = []
         print(f"Starting validate at epoch: {epoch}")
-        self.model.eval()
+        self.model.train()  # оставляем train mode, чтобы считать лоссы
 
         tk0 = tqdm(enumerate(loader), total=len(loader))
         eval_scores = EvalMeter()
@@ -139,6 +140,7 @@ class DetectionTrainer:
             images = torch.stack(images)
             # batch_size = images.shape[0]
             images = images.to(self.config.device).float()
+            targets = [{k: v.to(self.config.device) for k, v in t.items()} for t in targets]
             # boxes = [target['boxes'].to(self.device).float() for target in targets]
             # labels = [target['labels'].to(self.device).float() for target in targets]
 
@@ -153,18 +155,21 @@ class DetectionTrainer:
             #     output = self.model(images, target_eff)
             #     loss = output['loss']
 
-            outputs = self.model(images)
+            outputs = self.model(images, targets)
+            loss = sum(loss for loss in outputs.values())
 
-            for i, image in enumerate(images):
-                gt_boxes = targets[i]['boxes'].data.cpu().numpy()
-                boxes = outputs[i]['boxes'].data.cpu().numpy()
-                scores = outputs[i]['scores'].detach().cpu().numpy()
+            self.losses.append(loss.item())
+            # Считаем mAP @ 0.5, но кажется, там что-то работает некорректно
+            # for i, image in enumerate(images):
+            #     gt_boxes = targets[i]['boxes'].data.cpu().numpy()
+            #     boxes = outputs[i]['boxes'].data.cpu().numpy()
+            #     scores = outputs[i]['scores'].detach().cpu().numpy()
+            #
+            #     preds_sorted_idx = np.argsort(scores)[::-1]
+            #     preds_sorted_boxes = boxes[preds_sorted_idx]
+            #
+            #     eval_scores.update(pred_boxes=preds_sorted_boxes, gt_boxes=gt_boxes)
 
-                preds_sorted_idx = np.argsort(scores)[::-1]
-                preds_sorted_boxes = boxes[preds_sorted_idx]
-
-                eval_scores.update(pred_boxes=preds_sorted_boxes, gt_boxes=gt_boxes)
-
-            tk0.set_postfix(Val_score=eval_scores.avg,
+            tk0.set_postfix(Val_loss=np.mean(self.losses),
                             Epoch=epoch,
                             LR=self.optimizer.param_groups[0]['lr'])
