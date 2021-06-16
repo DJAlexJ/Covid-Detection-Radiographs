@@ -1,11 +1,11 @@
 import argparse
 import os
 
-from trainer import DetectionTrainer
-from config import TrainGlobalConfig as cfg
+import pandas as pd
 import torch
 import torch.nn as nn
-import pandas as pd
+from config import TrainGlobalConfig as cfg
+from trainer import DetectionTrainer
 
 if __name__ == "__main__":
 

@@ -1,28 +1,26 @@
+import gc
+
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-import pandas as pd
-import numpy as np
-
-from torch.utils.data.dataset import Dataset
-from torch.utils.data.dataloader import DataLoader
-
-from sklearn.model_selection import StratifiedKFold
-from tqdm import tqdm
-
-from models import FasterRCNNDetector, Logger, get_faster_rcnn
-from metrics import EvalMeter
 from config import DefaultConfig, TrainGlobalConfig
+from metrics import EvalMeter
+from models import FasterRCNNDetector, Logger, get_faster_rcnn
+from sklearn.model_selection import StratifiedKFold
+from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.dataset import Dataset
+from tqdm import tqdm
 from utils import (
-    get_train_file_path,
-    get_train_dataset,
     get_train_data_loader,
-    get_validation_dataset,
+    get_train_dataset,
+    get_train_file_path,
     get_validation_data_loader,
+    get_validation_dataset,
     save_checkpoint,
 )
-import gc
 
 
 class DetectionTrainer:
@@ -39,7 +37,9 @@ class DetectionTrainer:
         self.model = get_faster_rcnn(pretrained=pretrained)
         self.model.cuda()
 
-        self.optimizer = optimizer(self.model.parameters(), **config.optimizer_params)
+        self.optimizer = optimizer(
+            self.model.parameters(), **config.optimizer_params
+        )
         self.scheduler = scheduler(self.optimizer, **config.scheduler_params)
         self.config = config
         self.logger = Logger(config.folder + f"/{fold}")
@@ -109,7 +109,8 @@ class DetectionTrainer:
             # boxes = [target['boxes'].to(self.config.device).float() for target in targets]
             # labels = [target['labels'].to(self.config.device).float() for target in targets]
             targets = [
-                {k: v.to(self.config.device) for k, v in t.items()} for t in targets
+                {k: v.to(self.config.device) for k, v in t.items()}
+                for t in targets
             ]
 
             self.optimizer.zero_grad()
@@ -153,7 +154,8 @@ class DetectionTrainer:
             # batch_size = images.shape[0]
             images = images.to(self.config.device).float()
             targets = [
-                {k: v.to(self.config.device) for k, v in t.items()} for t in targets
+                {k: v.to(self.config.device) for k, v in t.items()}
+                for t in targets
             ]
             # boxes = [target['boxes'].to(self.device).float() for target in targets]
             # labels = [target['labels'].to(self.device).float() for target in targets]

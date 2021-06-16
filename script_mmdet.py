@@ -11,24 +11,22 @@ import torchvision
 print(torch.__version__, torch.cuda.is_available())
 
 # Check mmcv installation
-from mmcv.ops import get_compiling_cuda_version, get_compiler_version
+from mmcv.ops import get_compiler_version, get_compiling_cuda_version
 
 print(get_compiling_cuda_version())
 print(get_compiler_version())
 
-# Check MMDetection installation
-from mmdet.apis import set_random_seed
+import random
+from pathlib import Path
 
 # Imports
 import mmdet
-from mmdet.apis import set_random_seed
+import numpy as np
+
+# Check MMDetection installation
+from mmdet.apis import set_random_seed, train_detector
 from mmdet.datasets import build_dataset
 from mmdet.models import build_detector
-from mmdet.apis import train_detector
-
-import random
-import numpy as np
-from pathlib import Path
 
 global_seed = 63
 
@@ -50,7 +48,6 @@ set_seed()
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 from mmcv import Config
-
 
 baseline_cfg_path = (
     "../mmdetection/configs/cascade_rcnn/cascade_rcnn_r50_fpn_20e_coco.py"
@@ -156,7 +153,10 @@ albu_train_transforms = [
         p=0.2,
     ),
     dict(
-        type="RandomBrightnessContrast", brightness_limit=0.2, contrast_limit=0.2, p=0.3
+        type="RandomBrightnessContrast",
+        brightness_limit=0.2,
+        contrast_limit=0.2,
+        p=0.3,
     ),
     dict(type="IAAAffine", shear=(-10.0, 10.0), p=0.4),
     dict(

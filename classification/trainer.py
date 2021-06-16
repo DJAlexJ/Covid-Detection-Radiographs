@@ -1,24 +1,24 @@
-import torch
-import torch.nn as nn
-from torch.utils.data.dataloader import DataLoader
-import torch.optim as optim
-import pandas as pd
-import numpy as np
-from torch.utils.data.dataset import Dataset
-from tqdm import tqdm
-import timm
 import gc
 
+import numpy as np
+import pandas as pd
+import timm
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from config import DefaultConfig
+from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.dataset import Dataset
+from tqdm import tqdm
 from utils import (
     ClassificationDataset,
-    get_train_transforms,
-    get_valid_transforms,
-    get_train_val_split,
     Logger,
-    save_checkpoint,
     get_roc_auc_score,
+    get_train_transforms,
+    get_train_val_split,
+    get_valid_transforms,
+    save_checkpoint,
 )
-from config import DefaultConfig
 
 
 class ClassificationTrainer:

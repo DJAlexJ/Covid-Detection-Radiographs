@@ -1,6 +1,7 @@
+from typing import Any, Callable, Dict, Union
+
 import torch
 import torch.optim as optim
-from typing import Any, Dict, Union, Callable
 
 
 class DefaultConfig:

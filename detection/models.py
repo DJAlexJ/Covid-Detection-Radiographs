@@ -1,21 +1,27 @@
+import gc
+
 import torch
 import torchvision
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, FasterRCNN
-from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
-
-from effdet import EfficientDet, DetBenchTrain
-from effdet.efficientdet import HeadNet
-from effdet import create_model
-from effdet import create_model_from_config, get_efficientdet_config
-
 from config import DefaultConfig, TrainGlobalConfig
-
-import gc
+from effdet import (
+    DetBenchTrain,
+    EfficientDet,
+    create_model,
+    create_model_from_config,
+    get_efficientdet_config,
+)
+from effdet.efficientdet import HeadNet
+from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
+from torchvision.models.detection.faster_rcnn import (
+    FasterRCNN,
+    FastRCNNPredictor,
+)
 
 
 class Logger(object):
     def __init__(self, logdir):
         from collections import defaultdict
+
         from torch.utils.tensorboard import SummaryWriter
 
         self.step_map = defaultdict(int)

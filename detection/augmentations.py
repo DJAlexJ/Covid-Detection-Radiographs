@@ -23,7 +23,9 @@ def get_train_transforms():
                 p=0.2,
             ),
             A.Resize(
-                height=DefaultConfig.img_size, width=DefaultConfig.img_size, p=1.0
+                height=DefaultConfig.img_size,
+                width=DefaultConfig.img_size,
+                p=1.0,
             ),
             A.Normalize(
                 mean=[0.485, 0.456, 0.406],
@@ -42,7 +44,9 @@ def get_valid_transforms():
     return A.Compose(
         [
             A.Resize(
-                height=DefaultConfig.img_size, width=DefaultConfig.img_size, p=1.0
+                height=DefaultConfig.img_size,
+                width=DefaultConfig.img_size,
+                p=1.0,
             ),
             A.Normalize(
                 mean=[0.485, 0.456, 0.406],

@@ -1,13 +1,12 @@
 import os
 import random
-import numpy as np
-import torch
-from torch.utils.data import Dataset, DataLoader
 
 import augmentations as aug
-
-from dataset import DetectionDataset
+import numpy as np
+import torch
 from config import DefaultConfig
+from dataset import DetectionDataset
+from torch.utils.data import DataLoader, Dataset
 
 
 def seed_everything(seed):

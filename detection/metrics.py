@@ -1,8 +1,7 @@
 import numba
-from numba import jit
 import numpy as np
-
 from config import DefaultConfig
+from numba import jit
 
 
 @jit(nopython=True)
@@ -121,7 +120,12 @@ def calculate_precision(
     for pred_idx in range(n):
 
         best_match_gt_idx = find_best_match(
-            gts, preds[pred_idx], pred_idx, threshold=threshold, form=form, ious=ious
+            gts,
+            preds[pred_idx],
+            pred_idx,
+            threshold=threshold,
+            form=form,
+            ious=ious,
         )
 
         if best_match_gt_idx >= 0:
@@ -142,7 +146,9 @@ def calculate_precision(
 
 
 @jit(nopython=True)
-def calculate_image_precision(gts, preds, thresholds=[0.5], form="pascal_voc") -> float:
+def calculate_image_precision(
+    gts, preds, thresholds=[0.5], form="pascal_voc"
+) -> float:
     """Calculates image precision.
        The mean average precision at different intersection over union (IoU) thresholds.
 

@@ -1,15 +1,14 @@
 import argparse
 import os
 
+import pandas as pd
+import timm
 import torch
 import torch.nn as nn
-from torch.optim import lr_scheduler
-import timm
-import pandas as pd
-
-from models import BaseModel
-from trainer import ClassificationTrainer
 from config import TrainConfig as cfg
+from models import BaseModel
+from torch.optim import lr_scheduler
+from trainer import ClassificationTrainer
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -27,7 +26,9 @@ if __name__ == "__main__":
     optimizer = cfg.optimizer(model.parameters(), **cfg.optimizer_params)
 
     scheduler_params = dict(T_0=7, T_mult=1, eta_min=1e-6, last_epoch=-1)
-    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(optimizer, **scheduler_params)
+    scheduler = lr_scheduler.CosineAnnealingWarmRestarts(
+        optimizer, **scheduler_params
+    )
 
     trainer = ClassificationTrainer(
         model=model,

@@ -1,9 +1,8 @@
+import albumentations as A
+import cv2
 import numpy as np
 import torch
 from torch.utils.data import Dataset
-
-import albumentations as A
-import cv2
 
 
 class DetectionDataset(Dataset):

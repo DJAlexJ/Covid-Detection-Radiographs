@@ -1,54 +1,50 @@
+import os
 import sys
+
+import cv2
 import numpy as np
+import pandas as pd
 import pydicom
-from pydicom.pixel_data_handlers.util import apply_voi_lut
-from tqdm import tqdm
 import timm
 import torch
 import torch.nn as nn
-from torch import optim
-import pandas as pd
-import numpy as np
-import os
-from sklearn.model_selection import StratifiedKFold
-from sklearn.metrics import roc_auc_score
-
-from torch.utils.data import Dataset
-import cv2
-
 from albumentations import (
-    HorizontalFlip,
-    VerticalFlip,
-    IAAPerspective,
-    ShiftScaleRotate,
     CLAHE,
-    RandomRotate90,
-    Transpose,
-    ShiftScaleRotate,
     Blur,
-    OpticalDistortion,
+    CenterCrop,
+    CoarseDropout,
+    Compose,
+    Cutout,
+    Flip,
+    GaussNoise,
     GridDistortion,
+    HorizontalFlip,
     HueSaturationValue,
     IAAAdditiveGaussianNoise,
-    GaussNoise,
-    MotionBlur,
-    MedianBlur,
-    IAAPiecewiseAffine,
-    RandomResizedCrop,
-    IAASharpen,
     IAAEmboss,
-    RandomBrightnessContrast,
-    Flip,
-    OneOf,
-    Compose,
+    IAAPerspective,
+    IAAPiecewiseAffine,
+    IAASharpen,
+    MedianBlur,
+    MotionBlur,
     Normalize,
-    Cutout,
-    CoarseDropout,
-    ShiftScaleRotate,
-    CenterCrop,
+    OneOf,
+    OpticalDistortion,
+    RandomBrightnessContrast,
+    RandomResizedCrop,
+    RandomRotate90,
     Resize,
+    ShiftScaleRotate,
+    Transpose,
+    VerticalFlip,
 )
 from albumentations.pytorch import ToTensorV2
+from pydicom.pixel_data_handlers.util import apply_voi_lut
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import StratifiedKFold
+from torch import optim
+from torch.utils.data import Dataset
+from tqdm import tqdm
 
 
 def get_train_transforms(img_size: int):
@@ -105,7 +101,9 @@ class ClassificationDataset(Dataset):
 
     def __getitem__(self, index):
         image = (
-            cv2.imread(self.paths[index], cv2.IMREAD_COLOR).copy().astype(np.float32)
+            cv2.imread(self.paths[index], cv2.IMREAD_COLOR)
+            .copy()
+            .astype(np.float32)
         )
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
         label = self.labels[index]
@@ -123,6 +121,7 @@ def get_train_val_split(data_dir, fold):
 class Logger(object):
     def __init__(self, logdir):
         from collections import defaultdict
+
         from torch.utils.tensorboard import SummaryWriter
 
         self.step_map = defaultdict(int)
