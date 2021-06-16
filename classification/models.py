@@ -17,6 +17,12 @@ class BaseModel(nn.Module):
         if model_name.startswith('swin'):
             in_features = self.model.head.in_features
             self.model.head = nn.Linear(in_features, num_classes)
+        elif model_name.startswith('resnet'):
+            in_features = self.model.fc.in_features
+            self.model.fc = nn.Linear(in_features, num_classes)
+        elif 'efficientnet' in model_name:
+            in_features = self.model.classifier.in_features
+            self.model.classifier = nn.Linear(in_features, num_classes)
         self.model.cuda()
 
     def forward(self, x):
