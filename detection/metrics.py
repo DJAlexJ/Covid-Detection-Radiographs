@@ -6,7 +6,7 @@ from config import DefaultConfig
 
 
 @jit(nopython=True)
-def calculate_iou(gt, pr, form='pascal_voc') -> float:
+def calculate_iou(gt, pr, form="pascal_voc") -> float:
     """Calculates the Intersection over Union.
 
     Args:
@@ -18,7 +18,7 @@ def calculate_iou(gt, pr, form='pascal_voc') -> float:
     Returns:
         (float) Intersection over union (0.0 <= iou <= 1.0)
     """
-    if form == 'coco':
+    if form == "coco":
         gt = gt.copy()
         pr = pr.copy()
 
@@ -42,16 +42,18 @@ def calculate_iou(gt, pr, form='pascal_voc') -> float:
 
     # Calculate union area
     union_area = (
-            (gt[2] - gt[0] + 1) * (gt[3] - gt[1] + 1) +
-            (pr[2] - pr[0] + 1) * (pr[3] - pr[1] + 1) -
-            overlap_area
+        (gt[2] - gt[0] + 1) * (gt[3] - gt[1] + 1)
+        + (pr[2] - pr[0] + 1) * (pr[3] - pr[1] + 1)
+        - overlap_area
     )
 
     return overlap_area / union_area
 
 
 @jit(nopython=True)
-def find_best_match(gts, pred, pred_idx, threshold=0.5, form='pascal_voc', ious=None) -> int:
+def find_best_match(
+    gts, pred, pred_idx, threshold=0.5, form="pascal_voc", ious=None
+) -> int:
     """Returns the index of the 'best match' between the
     ground-truth boxes and the prediction. The 'best match'
     is the highest IoU. (0.0 IoUs are ignored).
@@ -95,7 +97,9 @@ def find_best_match(gts, pred, pred_idx, threshold=0.5, form='pascal_voc', ious=
 
 
 @jit(nopython=True)
-def calculate_precision(gts, preds, threshold=0.5, form='pascal_voc', ious=None) -> float:
+def calculate_precision(
+    gts, preds, threshold=0.5, form="pascal_voc", ious=None
+) -> float:
     """Calculates precision for GT - prediction pairs at one threshold.
 
     Args:
@@ -116,8 +120,9 @@ def calculate_precision(gts, preds, threshold=0.5, form='pascal_voc', ious=None)
     # for pred_idx, pred in enumerate(preds_sorted):
     for pred_idx in range(n):
 
-        best_match_gt_idx = find_best_match(gts, preds[pred_idx], pred_idx,
-                                            threshold=threshold, form=form, ious=ious)
+        best_match_gt_idx = find_best_match(
+            gts, preds[pred_idx], pred_idx, threshold=threshold, form=form, ious=ious
+        )
 
         if best_match_gt_idx >= 0:
             # True positive: The predicted box matches a gt box with an IoU above the threshold.
@@ -137,7 +142,7 @@ def calculate_precision(gts, preds, threshold=0.5, form='pascal_voc', ious=None)
 
 
 @jit(nopython=True)
-def calculate_image_precision(gts, preds, thresholds=[0.5], form='pascal_voc') -> float:
+def calculate_image_precision(gts, preds, thresholds=[0.5], form="pascal_voc") -> float:
     """Calculates image precision.
        The mean average precision at different intersection over union (IoU) thresholds.
 
@@ -157,8 +162,9 @@ def calculate_image_precision(gts, preds, thresholds=[0.5], form='pascal_voc') -
     ious = np.ones((len(gts), len(preds))) * -1
 
     for threshold in thresholds:
-        precision_at_threshold = calculate_precision(gts.copy(), preds, threshold=threshold,
-                                                     form=form, ious=ious)
+        precision_at_threshold = calculate_precision(
+            gts.copy(), preds, threshold=threshold, form=form, ious=ious
+        )
         image_precision += precision_at_threshold / n_threshold
 
     return image_precision
@@ -174,12 +180,14 @@ class EvalMeter(object):
         self.count = 0
 
     def update(self, gt_boxes, pred_boxes, n=1):
-        """ pred_boxes : need to be sorted."""
+        """pred_boxes : need to be sorted."""
 
-        self.image_precision = calculate_image_precision(pred_boxes,
-                                                         gt_boxes,
-                                                         thresholds=DefaultConfig.iou_thresholds,
-                                                         form='pascal_voc')
+        self.image_precision = calculate_image_precision(
+            pred_boxes,
+            gt_boxes,
+            thresholds=DefaultConfig.iou_thresholds,
+            form="pascal_voc",
+        )
         self.count += n
         self.sum += self.image_precision * n
         self.avg = self.sum / self.count

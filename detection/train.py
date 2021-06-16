@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import pandas as pd
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", type=str, default=str(0))
@@ -18,12 +18,12 @@ if __name__ == '__main__':
     fold = args.fold
     debug = args.debug
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = device
+    os.environ["CUDA_VISIBLE_DEVICES"] = device
 
     optimizer = cfg.optimizer
     scheduler = cfg.scheduler
-    trainer = DetectionTrainer(optimizer, scheduler, cfg,
-                               fold=fold, pretrained=True, DEBUG=debug
-                               )
+    trainer = DetectionTrainer(
+        optimizer, scheduler, cfg, fold=fold, pretrained=True, DEBUG=debug
+    )
     n_epochs = cfg.n_epochs
     trainer.train(n_epochs)

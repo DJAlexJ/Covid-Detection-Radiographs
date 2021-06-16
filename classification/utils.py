@@ -17,18 +17,43 @@ from torch.utils.data import Dataset
 import cv2
 
 from albumentations import (
-    HorizontalFlip, VerticalFlip, IAAPerspective, ShiftScaleRotate, CLAHE,
-    RandomRotate90, Transpose, ShiftScaleRotate, Blur, OpticalDistortion,
-    GridDistortion, HueSaturationValue, IAAAdditiveGaussianNoise, GaussNoise, 
-    MotionBlur, MedianBlur, IAAPiecewiseAffine, RandomResizedCrop, IAASharpen,
-    IAAEmboss, RandomBrightnessContrast, Flip, OneOf, Compose, Normalize,
-    Cutout, CoarseDropout, ShiftScaleRotate, CenterCrop, Resize
+    HorizontalFlip,
+    VerticalFlip,
+    IAAPerspective,
+    ShiftScaleRotate,
+    CLAHE,
+    RandomRotate90,
+    Transpose,
+    ShiftScaleRotate,
+    Blur,
+    OpticalDistortion,
+    GridDistortion,
+    HueSaturationValue,
+    IAAAdditiveGaussianNoise,
+    GaussNoise,
+    MotionBlur,
+    MedianBlur,
+    IAAPiecewiseAffine,
+    RandomResizedCrop,
+    IAASharpen,
+    IAAEmboss,
+    RandomBrightnessContrast,
+    Flip,
+    OneOf,
+    Compose,
+    Normalize,
+    Cutout,
+    CoarseDropout,
+    ShiftScaleRotate,
+    CenterCrop,
+    Resize,
 )
 from albumentations.pytorch import ToTensorV2
 
 
 def get_train_transforms(img_size: int):
-    return Compose([
+    return Compose(
+        [
             Resize(img_size, img_size),
             # Transpose(p=0.5),
             HorizontalFlip(p=0.5),
@@ -38,21 +63,33 @@ def get_train_transforms(img_size: int):
             #                 sat_shift_limit=0.2, val_shift_limit=0.2, p=0.5),
             # RandomBrightnessContrast(brightness_limit=(-0.1,0.1),
             #                 contrast_limit=(-0.1, 0.1), p=0.5),
-            Normalize(mean=[0.485, 0.456, 0.406],
-                      std=[0.229, 0.224, 0.225], max_pixel_value=255.0, p=1.0),
+            Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225],
+                max_pixel_value=255.0,
+                p=1.0,
+            ),
             # coarseDropout(p=0.5),
             ToTensorV2(p=1.0),
-        ], p=1.)
+        ],
+        p=1.0,
+    )
 
 
 def get_valid_transforms(img_size: int):
-    return Compose([
+    return Compose(
+        [
             Resize(img_size, img_size),
-            Normalize(mean=[0.485, 0.456, 0.406],
-                      std=[0.229, 0.224, 0.225],
-            max_pixel_value=255.0, p=1.0),
+            Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225],
+                max_pixel_value=255.0,
+                p=1.0,
+            ),
             ToTensorV2(p=1.0),
-        ], p=1.)
+        ],
+        p=1.0,
+    )
 
 
 class ClassificationDataset(Dataset):
@@ -60,25 +97,27 @@ class ClassificationDataset(Dataset):
         super().__init__()
         self.df = df
         self.transforms = transforms
-        self.paths = self.df['path'].values
-        self.labels = self.df['label'].values
+        self.paths = self.df["path"].values
+        self.labels = self.df["label"].values
 
     def __len__(self):
         return len(self.df)
-    
+
     def __getitem__(self, index):
-        image = cv2.imread(self.paths[index], cv2.IMREAD_COLOR).copy().astype(np.float32)
+        image = (
+            cv2.imread(self.paths[index], cv2.IMREAD_COLOR).copy().astype(np.float32)
+        )
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
         label = self.labels[index]
         if self.transforms:
-            image = self.transforms(image=image)['image']
+            image = self.transforms(image=image)["image"]
         return image, label
 
 
 def get_train_val_split(data_dir, fold):
     data = pd.read_csv(data_dir)
     col = f"fold{fold}"
-    return data[data[col]=='train'], data[data[col]=='val']
+    return data[data[col] == "train"], data[data[col] == "val"]
 
 
 class Logger(object):
@@ -95,13 +134,11 @@ class Logger(object):
 
 
 def save_checkpoint(epoch, model, optimizer, cfg, fold):
-    state = {
-        'model': model.state_dict(),
-        'optimizer': optimizer.state_dict()
-    }
+    state = {"model": model.state_dict(), "optimizer": optimizer.state_dict()}
     filename = cfg.base_name.format(fold=fold, epoch=epoch)
     checkpoint_dir = cfg.checkpoint_dir
     torch.save(state, checkpoint_dir.format(filename=filename))
+
 
 def get_roc_auc_score(actual, preds):
     preds = torch.nn.functional.softmax(preds, dim=1)
@@ -110,4 +147,4 @@ def get_roc_auc_score(actual, preds):
     print(actual, preds)
     # print(actual.shape, preds.shape)
 
-    return roc_auc_score(actual, preds, multi_class='ovr')
+    return roc_auc_score(actual, preds, multi_class="ovr")
