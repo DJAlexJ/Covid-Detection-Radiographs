@@ -3,19 +3,12 @@ import gc
 import torch
 import torchvision
 from config import DefaultConfig, TrainGlobalConfig
-from effdet import (
-    DetBenchTrain,
-    EfficientDet,
-    create_model,
-    create_model_from_config,
-    get_efficientdet_config,
-)
+from effdet import (DetBenchTrain, EfficientDet, create_model,
+                    create_model_from_config, get_efficientdet_config)
 from effdet.efficientdet import HeadNet
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
-from torchvision.models.detection.faster_rcnn import (
-    FasterRCNN,
-    FastRCNNPredictor,
-)
+from torchvision.models.detection.faster_rcnn import (FasterRCNN,
+                                                      FastRCNNPredictor)
 
 
 class Logger(object):

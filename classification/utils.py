@@ -8,36 +8,15 @@ import pydicom
 import timm
 import torch
 import torch.nn as nn
-from albumentations import (
-    CLAHE,
-    Blur,
-    CenterCrop,
-    CoarseDropout,
-    Compose,
-    Cutout,
-    Flip,
-    GaussNoise,
-    GridDistortion,
-    HorizontalFlip,
-    HueSaturationValue,
-    IAAAdditiveGaussianNoise,
-    IAAEmboss,
-    IAAPerspective,
-    IAAPiecewiseAffine,
-    IAASharpen,
-    MedianBlur,
-    MotionBlur,
-    Normalize,
-    OneOf,
-    OpticalDistortion,
-    RandomBrightnessContrast,
-    RandomResizedCrop,
-    RandomRotate90,
-    Resize,
-    ShiftScaleRotate,
-    Transpose,
-    VerticalFlip,
-)
+from albumentations import (CLAHE, Blur, CenterCrop, CoarseDropout, Compose,
+                            Cutout, Flip, GaussNoise, GridDistortion,
+                            HorizontalFlip, HueSaturationValue,
+                            IAAAdditiveGaussianNoise, IAAEmboss,
+                            IAAPerspective, IAAPiecewiseAffine, IAASharpen,
+                            MedianBlur, MotionBlur, Normalize, OneOf,
+                            OpticalDistortion, RandomBrightnessContrast,
+                            RandomResizedCrop, RandomRotate90, Resize,
+                            ShiftScaleRotate, Transpose, VerticalFlip)
 from albumentations.pytorch import ToTensorV2
 from pydicom.pixel_data_handlers.util import apply_voi_lut
 from sklearn.metrics import roc_auc_score

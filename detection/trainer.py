@@ -13,14 +13,9 @@ from sklearn.model_selection import StratifiedKFold
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
-from utils import (
-    get_train_data_loader,
-    get_train_dataset,
-    get_train_file_path,
-    get_validation_data_loader,
-    get_validation_dataset,
-    save_checkpoint,
-)
+from utils import (get_train_data_loader, get_train_dataset,
+                   get_train_file_path, get_validation_data_loader,
+                   get_validation_dataset, save_checkpoint)
 
 
 class DetectionTrainer:

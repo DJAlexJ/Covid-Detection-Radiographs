@@ -10,15 +10,9 @@ from config import DefaultConfig
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.data.dataset import Dataset
 from tqdm import tqdm
-from utils import (
-    ClassificationDataset,
-    Logger,
-    get_roc_auc_score,
-    get_train_transforms,
-    get_train_val_split,
-    get_valid_transforms,
-    save_checkpoint,
-)
+from utils import (ClassificationDataset, Logger, get_roc_auc_score,
+                   get_train_transforms, get_train_val_split,
+                   get_valid_transforms, save_checkpoint)
 
 
 class ClassificationTrainer:
