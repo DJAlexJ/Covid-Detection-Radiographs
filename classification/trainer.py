@@ -55,7 +55,7 @@ class ClassificationTrainer:
     def train(self, n_epoch: int):
         self.get_loader(self.config)
         self.iter_cntr = 0
-        fold = self.config.fold_num
+        fold = self.fold
         for i in range(1, n_epoch + 1):
             self.train_one_epoch(i, self.train_loader)
             save_checkpoint(i, self.model, self.optimizer, self.config, fold)

@@ -22,7 +22,6 @@ class TrainConfig:
     test_dir: str = ""
     csv_file: str = "/home/almokhov/covid/train_labels.csv"
     n_folds: int = 5
-    fold_num: int = 0
     n_epochs: int = 80
     num_classes: int = 4
     img_size: int = 384
@@ -33,8 +32,8 @@ class TrainConfig:
     optimizer_params: Dict[str, Any] = {"lr": 0.0003, "momentum": 0.9}
     loader_params: Dict[str, Union[int, float, Callable]] = {
         "batch_size": 4,
-        "num_workers": 8,
+        "num_workers":0,
         "shuffle": True,
     }
-    logdir: str = "effnetb7/"
+    logdir: str = "effnetb7_2/"
     grad_accum: int = 4
