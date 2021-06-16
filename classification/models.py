@@ -13,9 +13,8 @@ class BaseModel(nn.Module):
         super().__init__()
         self.model_name = model_name
         self.num_classes = num_classes
-        # TODO: base class for all models
-        self.model = timm(model_name, pretrained=pretrained)
-        if model_name.starts_with('swin'):
+        self.model = timm.create_model(model_name, pretrained=pretrained)
+        if model_name.startswith('swin'):
             in_features = self.model.head.in_features
             self.model.head = nn.Linear(in_features, num_classes)
         self.model.cuda()
