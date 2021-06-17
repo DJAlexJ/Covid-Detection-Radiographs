@@ -31,8 +31,8 @@ class TrainConfig:
     optimizer: optim = optim.SGD
     optimizer_params: Dict[str, Any] = {"lr": 0.0003, "momentum": 0.9}
     loader_params: Dict[str, Union[int, float, Callable]] = {
-        "batch_size":4,
-        "num_workers":0,
+        "batch_size": 4,
+        "num_workers": 0,
         "shuffle": True,
     }
     logdir: str = "effnetb7_2/"
