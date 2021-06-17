@@ -1,42 +1,40 @@
+import gc
+
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-import pandas as pd
-import numpy as np
-
-from torch.utils.data.dataset import Dataset
-from torch.utils.data.dataloader import DataLoader
-
-from sklearn.model_selection import StratifiedKFold
-from tqdm import tqdm
-
-from models import FasterRCNNDetector, Logger, get_faster_rcnn
-from metrics import EvalMeter
 from config import DefaultConfig, TrainGlobalConfig
-from utils import (
-    get_train_file_path, get_train_dataset,
-    get_train_data_loader, get_validation_dataset,
-    get_validation_data_loader, save_checkpoint
-)
-import gc
+from metrics import EvalMeter
+from models import FasterRCNNDetector, Logger, get_faster_rcnn
+from sklearn.model_selection import StratifiedKFold
+from torch.utils.data.dataloader import DataLoader
+from torch.utils.data.dataset import Dataset
+from tqdm import tqdm
+from utils import (get_train_data_loader, get_train_dataset,
+                   get_train_file_path, get_validation_data_loader,
+                   get_validation_dataset, save_checkpoint)
 
 
 class DetectionTrainer:
     def __init__(
-            self,
-            optimizer: optim,
-            scheduler: optim,
-            config: DefaultConfig,
-            fold: int = 0,
-            pretrained: bool = True,
-            DEBUG: bool = True
+        self,
+        optimizer: optim,
+        scheduler: optim,
+        config: DefaultConfig,
+        fold: int = 0,
+        pretrained: bool = True,
+        DEBUG: bool = True,
     ):
 
         self.model = get_faster_rcnn(pretrained=pretrained)
         self.model.cuda()
 
-        self.optimizer = optimizer(self.model.parameters(), **config.optimizer_params)
+        self.optimizer = optimizer(
+            self.model.parameters(), **config.optimizer_params
+        )
         self.scheduler = scheduler(self.optimizer, **config.scheduler_params)
         self.config = config
         self.logger = Logger(config.folder + f"/{fold}")
@@ -47,38 +45,43 @@ class DetectionTrainer:
         data = pd.read_csv(DefaultConfig.df_path)
         if self.debug:
             data = data.sample(100)
-        data['jpg_path'] = data['id'].apply(get_train_file_path)
-        data.loc[data.human_label.isin(['atypical', 'indeterminate', 'typical']), 'integer_label'] = 1
-        data.loc[data.human_label == 'negative', 'integer_label'] = 0
-        data = data[data.human_label != 'negative']
+        data["jpg_path"] = data["id"].apply(get_train_file_path)
+        data.loc[
+            data.human_label.isin(["atypical", "indeterminate", "typical"]),
+            "integer_label",
+        ] = 1
+        data.loc[data.human_label == "negative", "integer_label"] = 0
+        data = data[data.human_label != "negative"]
         train = data.copy()
 
         df_folds = train.copy()
-        skf = StratifiedKFold(n_splits=DefaultConfig.n_folds, shuffle=True, random_state=DefaultConfig.seed)
-
-        # Готовим фолды
-        for n, (train_index, val_index) in enumerate(skf.split(X=df_folds.index, y=df_folds.integer_label)):
-            df_folds.loc[df_folds.iloc[val_index].index, 'fold'] = n
-
-        df_folds['fold'] = df_folds['fold'].astype(int)
-        df_folds.set_index('id', inplace=True)
-
-        train_dataset = get_train_dataset(fold_number=self.fold,
-                                          df_folds=df_folds,
-                                          train=train
-                                          )
-        self.train_loader = get_train_data_loader(
-            train_dataset,
-            batch_size=TrainGlobalConfig.batch_size
+        skf = StratifiedKFold(
+            n_splits=DefaultConfig.n_folds,
+            shuffle=True,
+            random_state=DefaultConfig.seed,
         )
 
-        validation_dataset = get_validation_dataset(fold_number=self.fold,
-                                                    df_folds=df_folds,
-                                                    train=train
-                                                    )
+        # Готовим фолды
+        for n, (train_index, val_index) in enumerate(
+            skf.split(X=df_folds.index, y=df_folds.integer_label)
+        ):
+            df_folds.loc[df_folds.iloc[val_index].index, "fold"] = n
+
+        df_folds["fold"] = df_folds["fold"].astype(int)
+        df_folds.set_index("id", inplace=True)
+
+        train_dataset = get_train_dataset(
+            fold_number=self.fold, df_folds=df_folds, train=train
+        )
+        self.train_loader = get_train_data_loader(
+            train_dataset, batch_size=TrainGlobalConfig.batch_size
+        )
+
+        validation_dataset = get_validation_dataset(
+            fold_number=self.fold, df_folds=df_folds, train=train
+        )
         self.val_loader = get_validation_data_loader(
-            validation_dataset,
-            batch_size=TrainGlobalConfig.batch_size
+            validation_dataset, batch_size=TrainGlobalConfig.batch_size
         )
 
     def train(self, n_epoch: int):
@@ -100,7 +103,10 @@ class DetectionTrainer:
             # batch_size = images.shape[0]
             # boxes = [target['boxes'].to(self.config.device).float() for target in targets]
             # labels = [target['labels'].to(self.config.device).float() for target in targets]
-            targets = [{k: v.to(self.config.device) for k, v in t.items()} for t in targets]
+            targets = [
+                {k: v.to(self.config.device) for k, v in t.items()}
+                for t in targets
+            ]
 
             self.optimizer.zero_grad()
 
@@ -121,9 +127,11 @@ class DetectionTrainer:
             self.optimizer.step()
 
             self.losses.append(loss.item())
-            tk0.set_postfix(Train_Loss=np.mean(self.losses),
-                            Epoch=epoch,
-                            LR=self.optimizer.param_groups[0]['lr'])
+            tk0.set_postfix(
+                Train_Loss=np.mean(self.losses),
+                Epoch=epoch,
+                LR=self.optimizer.param_groups[0]["lr"],
+            )
             # if self.config.step_scheduler:
             #     self.scheduler.step()
 
@@ -140,7 +148,10 @@ class DetectionTrainer:
             images = torch.stack(images)
             # batch_size = images.shape[0]
             images = images.to(self.config.device).float()
-            targets = [{k: v.to(self.config.device) for k, v in t.items()} for t in targets]
+            targets = [
+                {k: v.to(self.config.device) for k, v in t.items()}
+                for t in targets
+            ]
             # boxes = [target['boxes'].to(self.device).float() for target in targets]
             # labels = [target['labels'].to(self.device).float() for target in targets]
 
@@ -170,6 +181,8 @@ class DetectionTrainer:
             #
             #     eval_scores.update(pred_boxes=preds_sorted_boxes, gt_boxes=gt_boxes)
 
-            tk0.set_postfix(Val_loss=np.mean(self.losses),
-                            Epoch=epoch,
-                            LR=self.optimizer.param_groups[0]['lr'])
+            tk0.set_postfix(
+                Val_loss=np.mean(self.losses),
+                Epoch=epoch,
+                LR=self.optimizer.param_groups[0]["lr"],
+            )

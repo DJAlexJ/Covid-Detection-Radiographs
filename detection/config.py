@@ -20,13 +20,13 @@ class TrainGlobalConfig:
     batch_size: int = 10
     n_epochs: int = 15
     lr: float = 0.0003
-    device: str = 'cuda'
+    device: str = "cuda"
 
     img_size = DefaultConfig.img_size
 
     folder = "./logs_torch"  # директория для весов и логов
-    base_name: str = 'faster_rcnn_detector_{fold}_epoch_{epoch}.pth'
-    checkpoint_dir: str = './checkpoints/{filename}'
+    base_name: str = "faster_rcnn_detector_{fold}_epoch_{epoch}.pth"
+    checkpoint_dir: str = "./checkpoints/{filename}"
 
     # -------------------
     verbose = True
@@ -34,21 +34,12 @@ class TrainGlobalConfig:
     # -------------------
 
     optimizer = torch.optim.Adam
-    optimizer_params = dict(
-        lr=0.001,
-        betas=(0.9, 0.999),
-        eps=1e-08
-    )
+    optimizer_params = dict(lr=0.001, betas=(0.9, 0.999), eps=1e-08)
 
     # --------------------
     # step_scheduler = False  # делать scheduler.step после optimizer.step
     # validation_scheduler = False  # делать scheduler.step после validation stage loss
 
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts
-    scheduler_params = dict(
-        T_0=4,
-        T_mult=1,
-        eta_min=1e-6,
-        last_epoch=-1
-    )
+    scheduler_params = dict(T_0=4, T_mult=1, eta_min=1e-6, last_epoch=-1)
     # --------------------
