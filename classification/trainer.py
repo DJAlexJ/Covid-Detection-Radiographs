@@ -49,11 +49,16 @@ class ClassificationTrainer:
     def train(self, n_epoch: int):
         self.get_loader(self.config)
         self.iter_cntr = 0
+        current_best_val_acc = 0.0
         fold = self.fold
         for i in range(1, n_epoch + 1):
             self.train_one_epoch(i, self.train_loader)
-            save_checkpoint(i, self.model, self.optimizer, self.config, fold)
-            self.validate_one_epoch(i, self.val_loader)
+            val_acc = self.validate_one_epoch(i, self.val_loader)
+            if val_acc > current_best_val_acc:
+                save_checkpoint(
+                    i, self.model, self.optimizer, self.config, fold
+                )
+                current_best_val_acc = val_acc
             self.scheduler.step()
 
     def train_one_epoch(self, epoch: int, loader: DataLoader):
@@ -69,7 +74,7 @@ class ClassificationTrainer:
             labels = labels.cuda()
             outputs = self.model(images)
             _, pred = torch.max(outputs, dim=1)
-            self.correct += torch.sum(pred == labels).item()
+            self.correct += int(torch.sum(pred == labels).item())
             self.total += labels.size(0)
             loss = self.criterion(outputs, labels)
             loss = loss / self.grad_accum
@@ -94,6 +99,7 @@ class ClassificationTrainer:
         self.correct = 0
         self.total = 0
         self.losses = []
+        val_accs = []
         print(f"Starting validate at epoch: {epoch}")
         self.model.eval()
         tk0 = tqdm(enumerate(loader), total=len(loader))
@@ -102,11 +108,12 @@ class ClassificationTrainer:
             labels = labels.cuda()
             outputs = self.model(images)
             _, pred = torch.max(outputs, dim=1)
-            self.correct += torch.sum(pred == labels).item()
+            self.correct += int(torch.sum(pred == labels).item())
             self.total += labels.size(0)
             loss = self.criterion(outputs, labels)
             self.losses.append(loss.item())
             val_acc = self.correct / self.total
+            val_accs.append(val_acc)
             # auc = get_roc_auc_score(labels, outputs)
             if self.logger:
                 self.logger.log("Loss/val", loss.item())
@@ -119,3 +126,6 @@ class ClassificationTrainer:
                 LR=self.optimizer.param_groups[0]["lr"],
             )
             tk0.update(1)
+        mean_acc = np.mean(val_accs)
+        self.logger.log("Acc/epoch", mean_acc)
+        return mean_acc

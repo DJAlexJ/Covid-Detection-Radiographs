@@ -26,14 +26,14 @@ class TrainConfig:
     num_classes: int = 4
     img_size: int = 384
     device: str = "cuda"
-    checkpoint_dir: str = "/home/almokhov/covid/Covid-Detection-Radiographs/classification/checkpoints/{filename}"
+    checkpoint_dir: str = "/home/almokhov/covid/Covid-Detection-Radiographs/classification/checkpoints3/{filename}"
     base_name: str = "effnet_b7_classifier_nfold_{fold}_epoch_{epoch}.pth"  # 'swin_classifier_nfold_{fold}_epoch_{epoch}.pth'
     optimizer: optim = optim.SGD
     optimizer_params: Dict[str, Any] = {"lr": 0.0003, "momentum": 0.9}
     loader_params: Dict[str, Union[int, float, Callable]] = {
-        "batch_size": 4,
+        "batch_size": 5,
         "num_workers": 0,
         "shuffle": True,
     }
-    logdir: str = "effnetb7_2/"
+    logdir: str = "effnetb7_3/"
     grad_accum: int = 4

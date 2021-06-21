@@ -19,8 +19,7 @@ if __name__ == "__main__":
     device = args.device
     os.environ["CUDA_VISIBLE_DEVICES"] = device
 
-    # model_name = 'resnet50'
-    model_name = "swin_large_patch4_window12_384"
+    model_name = "tf_efficientnet_b7"
     model = BaseModel(model_name, num_classes=4, pretrained=True)
     criterion = nn.CrossEntropyLoss()
     optimizer = cfg.optimizer(model.parameters(), **cfg.optimizer_params)
