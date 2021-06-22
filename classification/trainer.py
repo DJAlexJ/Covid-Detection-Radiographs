@@ -38,11 +38,11 @@ class ClassificationTrainer:
     def get_loader(self, config):
         train_data, val_data = get_train_val_split(config.csv_file, self.fold)
         train_dataset = ClassificationDataset(
-            train_data, get_train_transforms(config.img_size)
+            train_data, get_train_transforms(config.img_size), config.label
         )
         self.train_loader = DataLoader(train_dataset, **config.loader_params)
         val_dataset = ClassificationDataset(
-            val_data, get_valid_transforms(config.img_size)
+            val_data, get_valid_transforms(config.img_size), config.label
         )
         self.val_loader = DataLoader(val_dataset, **config.loader_params)
 
@@ -83,14 +83,15 @@ class ClassificationTrainer:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
             self.losses.append(loss.item())
-
+            acc = self.correct / self.total
             if self.logger:
                 self.logger.log("Loss/train", loss.item())
-                self.logger.log("Acc/train", self.correct / self.total)
+                self.logger.log("Acc/train", acc)
             tk0.set_postfix(
                 Train_Loss=np.mean(self.losses),
                 Epoch=epoch,
                 LR=self.optimizer.param_groups[0]["lr"],
+                ACC=acc
             )
             tk0.update(1)
 
@@ -114,11 +115,10 @@ class ClassificationTrainer:
             self.losses.append(loss.item())
             val_acc = self.correct / self.total
             val_accs.append(val_acc)
-            # auc = get_roc_auc_score(labels, outputs)
+
             if self.logger:
                 self.logger.log("Loss/val", loss.item())
                 self.logger.log("Acc/val", val_acc)
-            # self.logger.log("ROC AUC/val", auc)
             tk0.set_postfix(
                 Val_Loss=np.mean(self.losses),
                 Epoch=epoch,

@@ -62,12 +62,12 @@ def get_valid_transforms(img_size: int):
 
 
 class ClassificationDataset(Dataset):
-    def __init__(self, df, transforms):
+    def __init__(self, df, transforms, label_col):
         super().__init__()
         self.df = df
         self.transforms = transforms
         self.paths = self.df["path"].values
-        self.labels = self.df["label"].values
+        self.labels = self.df[label_col].values
 
     def __len__(self):
         return len(self.df)

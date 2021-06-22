@@ -20,7 +20,8 @@ if __name__ == "__main__":
     os.environ["CUDA_VISIBLE_DEVICES"] = device
 
     model_name = "tf_efficientnet_b7"
-    model = BaseModel(model_name, num_classes=4, pretrained=True)
+
+    model = BaseModel(model_name, num_classes=cfg.num_classes, pretrained=True)
     criterion = nn.CrossEntropyLoss()
     optimizer = cfg.optimizer(model.parameters(), **cfg.optimizer_params)
 

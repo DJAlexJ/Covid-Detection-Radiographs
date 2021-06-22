@@ -20,20 +20,21 @@ class DefaultConfig:
 class TrainConfig:
     train_dir: str = "/home/almokhov/covid/train_data"
     test_dir: str = ""
-    csv_file: str = "/home/almokhov/covid/train_labels.csv"
+    csv_file: str = "/home/almokhov/covid/classification_data.csv"
+    label: str = "classification_label" # label
     n_folds: int = 5
-    n_epochs: int = 80
-    num_classes: int = 4
-    img_size: int = 384
+    n_epochs: int = 160
+    num_classes: int = 2
+    img_size: int = 512
     device: str = "cuda"
-    checkpoint_dir: str = "/home/almokhov/covid/Covid-Detection-Radiographs/classification/checkpoints3/{filename}"
+    checkpoint_dir: str = "/home/almokhov/covid/Covid-Detection-Radiographs/classification/checkpoints_classification/{filename}"
     base_name: str = "effnet_b7_classifier_nfold_{fold}_epoch_{epoch}.pth"  # 'swin_classifier_nfold_{fold}_epoch_{epoch}.pth'
     optimizer: optim = optim.SGD
     optimizer_params: Dict[str, Any] = {"lr": 0.0003, "momentum": 0.9}
     loader_params: Dict[str, Union[int, float, Callable]] = {
-        "batch_size": 5,
+        "batch_size": 2,
         "num_workers": 0,
         "shuffle": True,
     }
-    logdir: str = "effnetb7_3/"
-    grad_accum: int = 4
+    logdir: str = "effnetb7_classification/"
+    grad_accum: int = 12
