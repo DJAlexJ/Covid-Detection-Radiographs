@@ -2,184 +2,96 @@ import numba
 from numba import jit
 import numpy as np
 
+import torch
+from torch import tensor
+from torchvision.ops.boxes import box_iou
 from config import DefaultConfig
 
 
-@jit(nopython=True)
-def calculate_iou(gt, pr, form='pascal_voc') -> float:
+def align_coordinates(boxes):
+    """Align coordinates (x1,y1) < (x2,y2) to work with torchvision `box_iou` op
+    Arguments:
+        boxes (Tensor[N,4])
+    
+    Returns:
+        boxes (Tensor[N,4]): aligned box coordinates
+    """
+    x1y1 = torch.min(boxes[:,:2,],boxes[:, 2:])
+    x2y2 = torch.max(boxes[:,:2,],boxes[:, 2:])
+    boxes = torch.cat([x1y1,x2y2],dim=1)
+    return boxes
+
+
+def calculate_iou(gt, pr, form='pascal_voc'):
     """Calculates the Intersection over Union.
 
-    Args:
-        gt: (np.ndarray[Union[int, float]]) coordinates of the ground-truth box
-        pr: (np.ndarray[Union[int, float]]) coordinates of the predicted box
+    Arguments:
+        gt: (torch.Tensor[N,4]) coordinates of the ground-truth boxes
+        pr: (torch.Tensor[M,4]) coordinates of the prdicted boxes
         form: (str) gt/pred coordinates format
             - pascal_voc: [xmin, ymin, xmax, ymax]
             - coco: [xmin, ymin, w, h]
     Returns:
-        (float) Intersection over union (0.0 <= iou <= 1.0)
+        iou (Tensor[N, M]): the NxM matrix containing the pairwise
+        IoU values for every element in boxes1 and boxes2
     """
     if form == 'coco':
-        gt = gt.copy()
-        pr = pr.copy()
+        gt = gt.clone()
+        pr = pr.clone()
 
-        gt[2] = gt[0] + gt[2]
-        gt[3] = gt[1] + gt[3]
-        pr[2] = pr[0] + pr[2]
-        pr[3] = pr[1] + pr[3]
+        gt[:,2] = gt[:,0] + gt[:,2]
+        gt[:,3] = gt[:,1] + gt[:,3]
+        pr[:,2] = pr[:,0] + pr[:,2]
+        pr[:,3] = pr[:,1] + pr[:,3]
 
-    # Calculate overlap area
-    dx = min(gt[2], pr[2]) - max(gt[0], pr[0]) + 1
-
-    if dx < 0:
-        return 0.0
-
-    dy = min(gt[3], pr[3]) - max(gt[1], pr[1]) + 1
-
-    if dy < 0:
-        return 0.0
-
-    overlap_area = dx * dy
-
-    # Calculate union area
-    union_area = (
-            (gt[2] - gt[0] + 1) * (gt[3] - gt[1] + 1) +
-            (pr[2] - pr[0] + 1) * (pr[3] - pr[1] + 1) -
-            overlap_area
-    )
-
-    return overlap_area / union_area
+    gt = align_coordinates(gt)
+    pr = align_coordinates(pr)
+    
+    return box_iou(gt,pr)
 
 
-@jit(nopython=True)
-def find_best_match(gts, pred, pred_idx, threshold=0.5, form='pascal_voc', ious=None) -> int:
-    """Returns the index of the 'best match' between the
-    ground-truth boxes and the prediction. The 'best match'
-    is the highest IoU. (0.0 IoUs are ignored).
+def get_mappings(iou_mat, pr_count):
+    mappings = torch.zeros_like(iou_mat)
+    #first mapping (max iou for first pred_box)
+    if not iou_mat[:,0].eq(0.).all():
+        # if not a zero column
+        mappings[iou_mat[:,0].argsort()[-1],0] = 1
 
-    Args:
-        gts: (List[List[Union[int, float]]]) Coordinates of the available ground-truth boxes
-        pred: (List[Union[int, float]]) Coordinates of the predicted box
-        pred_idx: (int) Index of the current predicted box
-        threshold: (float) Threshold
-        form: (str) Format of the coordinates
-        ious: (np.ndarray) len(gts) x len(preds) matrix for storing calculated ious.
+    for pr_idx in range(1, pr_count):
+        # Sum of all the previous mapping columns will let 
+        # us know which gt-boxes are already assigned
+        not_assigned = torch.logical_not(mappings[:,:pr_idx].sum(1)).long()
 
-    Return:
-        (int) Index of the best match GT box (-1 if no match above threshold)
-    """
-    best_match_iou = -np.inf
-    best_match_idx = -1
+        # Considering unassigned gt-boxes for further evaluation 
+        targets = not_assigned * iou_mat[:, pr_idx]
 
-    for gt_idx in range(len(gts)):
-
-        if gts[gt_idx][0] < 0:
-            # Already matched GT-box
+        # If no gt-box satisfy the previous conditions
+        # for the current pred-box, ignore it (False Positive)
+        if targets.eq(0).all():
             continue
 
-        iou = -1 if ious is None else ious[gt_idx][pred_idx]
-
-        if iou < 0:
-            iou = calculate_iou(gts[gt_idx], pred, form=form)
-
-            if ious is not None:
-                ious[gt_idx][pred_idx] = iou
-
-        if iou < threshold:
-            continue
-
-        if iou > best_match_iou:
-            best_match_iou = iou
-            best_match_idx = gt_idx
-
-    return best_match_idx
+        # max-iou from current column after all the filtering
+        # will be the pivot element for mapping
+        pivot = targets.argsort()[-1]
+        mappings[pivot,pr_idx] = 1
+    return mappings
 
 
-@jit(nopython=True)
-def calculate_precision(gts, preds, threshold=0.5, form='pascal_voc', ious=None) -> float:
-    """Calculates precision for GT - prediction pairs at one threshold.
-
-    Args:
-        gts: (List[List[Union[int, float]]]) Coordinates of the available ground-truth boxes
-        preds: (List[List[Union[int, float]]]) Coordinates of the predicted boxes,
-               sorted by confidence value (descending)
-        threshold: (float) Threshold
-        form: (str) Format of the coordinates
-        ious: (np.ndarray) len(gts) x len(preds) matrix for storing calculated ious.
-
-    Return:
-        (float) Precision
-    """
-    n = len(preds)
-    tp = 0
-    fp = 0
-
-    # for pred_idx, pred in enumerate(preds_sorted):
-    for pred_idx in range(n):
-
-        best_match_gt_idx = find_best_match(gts, preds[pred_idx], pred_idx,
-                                            threshold=threshold, form=form, ious=ious)
-
-        if best_match_gt_idx >= 0:
-            # True positive: The predicted box matches a gt box with an IoU above the threshold.
-            tp += 1
-            # Remove the matched GT box
-            gts[best_match_gt_idx] = -1
-
-        else:
-            # No match
-            # False positive: indicates a predicted box had no associated gt box.
-            fp += 1
-
-    # False negative: indicates a gt box had no associated predicted box.
-    fn = (gts.sum(axis=1) > 0).sum()
-
-    return tp / (tp + fp + fn)
-
-
-@jit(nopython=True)
-def calculate_image_precision(gts, preds, thresholds=[0.5], form='pascal_voc') -> float:
-    """Calculates image precision.
-       The mean average precision at different intersection over union (IoU) thresholds.
-
-    Args:
-        gts: (List[List[Union[int, float]]]) Coordinates of the available ground-truth boxes
-        preds: (List[List[Union[int, float]]]) Coordinates of the predicted boxes,
-               sorted by confidence value (descending)
-        thresholds: (float) Different thresholds
-        form: (str) Format of the coordinates
-
-    Return:
-        (float) Precision
-    """
-    n_threshold = len(thresholds)
-    image_precision = 0.0
-
-    ious = np.ones((len(gts), len(preds))) * -1
-
-    for threshold in thresholds:
-        precision_at_threshold = calculate_precision(gts.copy(), preds, threshold=threshold,
-                                                     form=form, ious=ious)
-        image_precision += precision_at_threshold / n_threshold
-
-    return image_precision
-
-
-class EvalMeter(object):
-    """Computes and stores the average and current value"""
-
-    def __init__(self):
-        self.image_precision = 0
-        self.avg = 0
-        self.sum = 0
-        self.count = 0
-
-    def update(self, gt_boxes, pred_boxes, n=1):
-        """ pred_boxes : need to be sorted."""
-
-        self.image_precision = calculate_image_precision(pred_boxes,
-                                                         gt_boxes,
-                                                         thresholds=DefaultConfig.iou_thresholds,
-                                                         form='pascal_voc')
-        self.count += n
-        self.sum += self.image_precision * n
-        self.avg = self.sum / self.count
+def calculate_map(gt_boxes, pr_boxes, scores, thresh=0.5, form='pascal_voc'):
+    # sorting
+    pr_boxes = pr_boxes[scores.argsort().flip(-1)]
+    iou_mat = calculate_iou(gt_boxes,pr_boxes,form)
+    gt_count, pr_count = iou_mat.shape
+    
+    # thresholding
+    iou_mat = iou_mat.where(iou_mat>thresh, tensor(0.).cuda())
+    
+    mappings = get_mappings(iou_mat, pr_count)
+    
+    # mAP calculation
+    tp = mappings.sum()
+    fp = mappings.sum(0).eq(0).sum()
+    fn = mappings.sum(1).eq(0).sum()
+    mAP = tp / (tp+fp+fn)
+    
+    return mAP
