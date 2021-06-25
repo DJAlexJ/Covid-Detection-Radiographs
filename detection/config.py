@@ -21,6 +21,7 @@ class TrainGlobalConfig:
     device: str = 'cuda'
     accum_steps = 3  # steps for gradient accumulation
 
+
     img_size = DefaultConfig.img_size
 
     folder = "./logs_torch"  # директория для весов и логов

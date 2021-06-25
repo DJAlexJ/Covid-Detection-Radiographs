@@ -8,7 +8,10 @@ from sklearn.model_selection import StratifiedKFold
 
 import augmentations as aug
 from dataset import DetectionDataset
+
 from config import DefaultConfig
+from dataset import DetectionDataset
+from torch.utils.data import DataLoader, Dataset
 
 
 def return_data_w_folds(data, only_pos_class=True):
@@ -33,7 +36,7 @@ def return_data_w_folds(data, only_pos_class=True):
 
 def seed_everything(seed):
     random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -51,17 +54,17 @@ def get_test_file_path(image_id):
 
 def get_train_dataset(fold_number, df_folds, train):
     return DetectionDataset(
-        image_ids=df_folds[df_folds['fold'] != fold_number].index.values,
+        image_ids=df_folds[df_folds["fold"] != fold_number].index.values,
         df=train,
-        transforms=aug.get_train_transforms()
+        transforms=aug.get_train_transforms(),
     )
 
 
 def get_validation_dataset(fold_number, df_folds, train):
     return DetectionDataset(
-        image_ids=df_folds[df_folds['fold'] == fold_number].index.values,
+        image_ids=df_folds[df_folds["fold"] == fold_number].index.values,
         df=train,
-        transforms=aug.get_valid_transforms()
+        transforms=aug.get_valid_transforms(),
     )
 
 
@@ -71,7 +74,7 @@ def get_train_data_loader(train_dataset, batch_size=16):
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
     )
 
 
@@ -81,7 +84,7 @@ def get_validation_data_loader(valid_dataset, batch_size=16):
         batch_size=batch_size,
         shuffle=True,
         num_workers=4,
-        collate_fn=collate_fn
+        collate_fn=collate_fn,
     )
 
 
@@ -97,4 +100,3 @@ def save_checkpoint(epoch, model, optimizer, cfg, fold):
     filename = cfg.base_name.format(fold=fold, epoch=epoch)
     checkpoint_dir = cfg.checkpoint_dir
     torch.save(state, checkpoint_dir.format(filename=filename))
-

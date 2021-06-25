@@ -12,6 +12,7 @@ from utils import seed_everything
 if __name__ == '__main__':
     seed_everything(DefaultConfig.seed)
 
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", type=str, default=str(0))
     parser.add_argument("--fold", type=int, default=0)
@@ -30,5 +31,6 @@ if __name__ == '__main__':
                                fold=fold, pretrained=True,
                                DEBUG=debug
                                )
+
     n_epochs = cfg.n_epochs
     trainer.train(n_epochs)

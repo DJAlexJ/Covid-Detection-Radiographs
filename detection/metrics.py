@@ -1,11 +1,11 @@
 import numba
-from numba import jit
 import numpy as np
-
 import torch
 from torch import tensor
 from torchvision.ops.boxes import box_iou
+
 from config import DefaultConfig
+from numba import jit
 
 
 def align_coordinates(boxes):

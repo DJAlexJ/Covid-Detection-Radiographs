@@ -1,3 +1,7 @@
+import gc
+
+import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -24,19 +28,21 @@ import gc
 
 class DetectionTrainer:
     def __init__(
-            self,
-            optimizer: optim,
-            scheduler: optim,
-            config: DefaultConfig,
-            fold: int = 0,
-            pretrained: bool = True,
-            DEBUG: bool = True
+        self,
+        optimizer: optim,
+        scheduler: optim,
+        config: DefaultConfig,
+        fold: int = 0,
+        pretrained: bool = True,
+        DEBUG: bool = True,
     ):
 
         self.model = get_faster_rcnn(pretrained=pretrained)
         self.model.cuda()
+
         self.optimizer = optimizer(self.model.parameters(), **config.optimizer_params)
         self.scheduler = scheduler(self.optimizer, **config.scheduler_params)
+        
         self.config = config
         self.logger = Logger(config.folder + f"/{fold}")
         self.fold = fold
@@ -56,12 +62,12 @@ class DetectionTrainer:
         self.train_loader = get_train_data_loader(
             train_dataset,
             batch_size=train_cfg.batch_size
-        )
 
-        validation_dataset = get_validation_dataset(fold_number=self.fold,
-                                                    df_folds=df_folds,
-                                                    train=train
-                                                    )
+        )
+        
+        validation_dataset = get_validation_dataset(
+            fold_number=self.fold, df_folds=df_folds, train=train
+        )
         self.val_loader = get_validation_data_loader(
             validation_dataset,
             batch_size=1
@@ -81,7 +87,6 @@ class DetectionTrainer:
     def train_one_epoch(self, epoch, loader):
         self.model.train()
         self.losses = []
-
         tk0 = tqdm(enumerate(loader), total=len(loader))
         for step, (images, targets, image_ids) in tk0:
             images = torch.stack(images).to(self.config.device).float()
