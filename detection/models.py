@@ -26,7 +26,7 @@ class Logger(object):
 
 
 class FasterRCNNDetector(torch.nn.Module):
-    def __init__(self, pretrained=False):
+    def __init__(self, pretrained=True):
         super(FasterRCNNDetector, self).__init__()
         # load pre-trained model incl. head
         self.model = torchvision.models.detection.fasterrcnn_resnet50_fpn(
@@ -45,18 +45,21 @@ class FasterRCNNDetector(torch.nn.Module):
         return self.model(images, targets)
 
 
-def get_faster_rcnn(checkpoint_path=None, pretrained=False):
+def get_faster_rcnn(checkpoint_path=None, pretrained=True, is_eval=False):
     model = FasterRCNNDetector(pretrained=pretrained)
 
     # Load the trained weights
     if checkpoint_path is not None:
         checkpoint = torch.load(checkpoint_path)
-        model.load_state_dict(checkpoint["model_state_dict"])
+        model.load_state_dict(checkpoint["model"])
+        # print("here")
 
         del checkpoint
         gc.collect()
 
     model = model.to(TrainGlobalConfig.device)
+    if is_eval:
+        model.eval()
     return model
 
 

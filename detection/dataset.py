@@ -47,8 +47,8 @@ class DetectionDataset(Dataset):
             .astype(np.float32)
         )
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
-        image /= 255.0
-        records = self.df[self.df["id"] == image_id]
+#         image /= 255.0
+        records = self.df[self.df['id'] == image_id]
         boxes = []
         for bbox in records[
             ["frac_xmin", "frac_ymin", "frac_xmax", "frac_ymax"]

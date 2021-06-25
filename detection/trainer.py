@@ -6,16 +6,24 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torchvision
-from config import DefaultConfig, TrainGlobalConfig
-from metrics import EvalMeter
-from models import FasterRCNNDetector, Logger, get_faster_rcnn
-from sklearn.model_selection import StratifiedKFold
-from torch.utils.data.dataloader import DataLoader
+import pandas as pd
+import numpy as np
+
 from torch.utils.data.dataset import Dataset
+from torch.utils.data.dataloader import DataLoader
+
 from tqdm import tqdm
-from utils import (get_train_data_loader, get_train_dataset,
-                   get_train_file_path, get_validation_data_loader,
-                   get_validation_dataset, save_checkpoint)
+
+from models import FasterRCNNDetector, Logger, get_faster_rcnn
+from config import DefaultConfig, TrainGlobalConfig as train_cfg
+from metrics import calculate_map
+from utils import (
+    get_train_file_path, get_train_dataset,
+    get_train_data_loader, get_validation_dataset,
+    get_validation_data_loader, save_checkpoint,
+    return_data_w_folds
+)
+import gc
 
 
 class DetectionTrainer:
@@ -32,56 +40,37 @@ class DetectionTrainer:
         self.model = get_faster_rcnn(pretrained=pretrained)
         self.model.cuda()
 
-        self.optimizer = optimizer(
-            self.model.parameters(), **config.optimizer_params
-        )
+        self.optimizer = optimizer(self.model.parameters(), **config.optimizer_params)
         self.scheduler = scheduler(self.optimizer, **config.scheduler_params)
+        
         self.config = config
         self.logger = Logger(config.folder + f"/{fold}")
         self.fold = fold
         self.debug = DEBUG
+        self.best_map = 0
 
     def get_loader(self):
         data = pd.read_csv(DefaultConfig.df_path)
         if self.debug:
             data = data.sample(100)
-        data["jpg_path"] = data["id"].apply(get_train_file_path)
-        data.loc[
-            data.human_label.isin(["atypical", "indeterminate", "typical"]),
-            "integer_label",
-        ] = 1
-        data.loc[data.human_label == "negative", "integer_label"] = 0
-        data = data[data.human_label != "negative"]
-        train = data.copy()
 
-        df_folds = train.copy()
-        skf = StratifiedKFold(
-            n_splits=DefaultConfig.n_folds,
-            shuffle=True,
-            random_state=DefaultConfig.seed,
-        )
-
-        # Готовим фолды
-        for n, (train_index, val_index) in enumerate(
-            skf.split(X=df_folds.index, y=df_folds.integer_label)
-        ):
-            df_folds.loc[df_folds.iloc[val_index].index, "fold"] = n
-
-        df_folds["fold"] = df_folds["fold"].astype(int)
-        df_folds.set_index("id", inplace=True)
-
-        train_dataset = get_train_dataset(
-            fold_number=self.fold, df_folds=df_folds, train=train
-        )
+        df_folds, train = return_data_w_folds(data)
+        train_dataset = get_train_dataset(fold_number=self.fold,
+                                          df_folds=df_folds,
+                                          train=train
+                                          )
         self.train_loader = get_train_data_loader(
-            train_dataset, batch_size=TrainGlobalConfig.batch_size
-        )
+            train_dataset,
+            batch_size=train_cfg.batch_size
 
+        )
+        
         validation_dataset = get_validation_dataset(
             fold_number=self.fold, df_folds=df_folds, train=train
         )
         self.val_loader = get_validation_data_loader(
-            validation_dataset, batch_size=TrainGlobalConfig.batch_size
+            validation_dataset,
+            batch_size=1
         )
 
     def train(self, n_epoch: int):
@@ -89,100 +78,67 @@ class DetectionTrainer:
         fold = self.fold
         for i in range(1, n_epoch + 1):
             self.train_one_epoch(i, self.train_loader)
-            save_checkpoint(i, self.model, self.optimizer, self.config, fold)
-            self.validate_one_epoch(i, self.val_loader)
+            mAP = self.validate_one_epoch(i, self.val_loader)
             self.scheduler.step()
+            if mAP > self.best_map:
+                save_checkpoint(i, self.model, self.optimizer, self.config, fold)
+                self.best_map = mAP
 
     def train_one_epoch(self, epoch, loader):
         self.model.train()
         self.losses = []
-
         tk0 = tqdm(enumerate(loader), total=len(loader))
         for step, (images, targets, image_ids) in tk0:
             images = torch.stack(images).to(self.config.device).float()
-            # batch_size = images.shape[0]
-            # boxes = [target['boxes'].to(self.config.device).float() for target in targets]
-            # labels = [target['labels'].to(self.config.device).float() for target in targets]
-            targets = [
-                {k: v.to(self.config.device) for k, v in t.items()}
-                for t in targets
-            ]
-
-            self.optimizer.zero_grad()
-
-            # if TrainGlobalConfig.model_name == 'eff_det':
-            #     target_eff = dict()
-            #     target_eff['bbox'] = boxes
-            #     target_eff['cls'] = labels
-            #     target_eff["img_scale"] = None  # torch.tensor([1.0] * batch_size, dtype=torch.float).to(self.device)
-            #     target_eff[
-            #         "img_size"] = None  # torch.tensor([images[0].shape[-2:]] * batch_size, dtype=torch.float).to(self.device)
-            #
-            #     output = self.model(images, target_eff)
-            #     loss = output['loss']
+            targets = [{k: v.to(self.config.device) for k, v in t.items()} for t in targets]
 
             outputs = self.model(images, targets)
             loss = sum(loss for loss in outputs.values())
+            loss = loss / train_cfg.accum_steps
             loss.backward()
-            self.optimizer.step()
+            # gradient accumulation
+            if (step + 1) % train_cfg.accum_steps == 0:
+                self.optimizer.step()
+                self.optimizer.zero_grad()
 
-            self.losses.append(loss.item())
-            tk0.set_postfix(
-                Train_Loss=np.mean(self.losses),
-                Epoch=epoch,
-                LR=self.optimizer.param_groups[0]["lr"],
-            )
-            # if self.config.step_scheduler:
-            #     self.scheduler.step()
+            self.losses.append(loss.item() * train_cfg.accum_steps)
+            tk0.set_postfix(Train_Loss=np.mean(self.losses),
+                            Epoch=epoch,
+                            LR=self.optimizer.param_groups[0]['lr'])
 
     @torch.no_grad()
-    def validate_one_epoch(self, epoch, loader):
-        self.losses = []
+    def validate_one_epoch(self, epoch, loader, nms_threshold=0.4):
+        self.maps = []
         print(f"Starting validate at epoch: {epoch}")
-        self.model.train()  # оставляем train mode, чтобы считать лоссы
+        self.model.eval()
 
         tk0 = tqdm(enumerate(loader), total=len(loader))
-        eval_scores = EvalMeter()
 
         for step, (images, targets, image_ids) in tk0:
             images = torch.stack(images)
-            # batch_size = images.shape[0]
             images = images.to(self.config.device).float()
-            targets = [
-                {k: v.to(self.config.device) for k, v in t.items()}
-                for t in targets
-            ]
-            # boxes = [target['boxes'].to(self.device).float() for target in targets]
-            # labels = [target['labels'].to(self.device).float() for target in targets]
-
-            # elif TrainGlobalConfig.model_name == 'eff_det':
-            #
-            #     target_eff = {}
-            #     target_eff['bbox'] = boxes
-            #     target_eff['cls'] = labels
-            #     target_eff["img_scale"] = None # torch.tensor([1.0] * batch_size, dtype=torch.float).to(self.device)
-            #     target_eff["img_size"] = None # torch.tensor([images[0].shape[-2:]] * batch_size, dtype=torch.float).to(self.device)
-            #
-            #     output = self.model(images, target_eff)
-            #     loss = output['loss']
-
-            outputs = self.model(images, targets)
-            loss = sum(loss for loss in outputs.values())
-
-            self.losses.append(loss.item())
-            # Считаем mAP @ 0.5, но кажется, там что-то работает некорректно
-            # for i, image in enumerate(images):
-            #     gt_boxes = targets[i]['boxes'].data.cpu().numpy()
-            #     boxes = outputs[i]['boxes'].data.cpu().numpy()
-            #     scores = outputs[i]['scores'].detach().cpu().numpy()
-            #
-            #     preds_sorted_idx = np.argsort(scores)[::-1]
-            #     preds_sorted_boxes = boxes[preds_sorted_idx]
-            #
-            #     eval_scores.update(pred_boxes=preds_sorted_boxes, gt_boxes=gt_boxes)
-
-            tk0.set_postfix(
-                Val_loss=np.mean(self.losses),
-                Epoch=epoch,
-                LR=self.optimizer.param_groups[0]["lr"],
+            gt = [target['boxes'].to(self.config.device).float() for target in targets]
+              
+            outputs = self.model(images)[0]
+            nms_idx = torchvision.ops.nms(
+                boxes=outputs["boxes"],
+                scores=outputs["scores"],
+                iou_threshold=nms_threshold
             )
+            outputs["boxes"] = outputs["boxes"][nms_idx]
+            outputs["scores"] = outputs["scores"][nms_idx]
+            if outputs["boxes"].nelement() == 0:
+                mAP = torch.tensor(0)
+            else:
+                mAP = calculate_map(
+                    gt[0], outputs["boxes"], outputs["scores"],
+                    thresh=DefaultConfig.iou_threshold
+                )
+
+            self.maps.append(mAP.item())
+
+            tk0.set_postfix(Val_mAP=np.mean(self.maps),
+                            Epoch=epoch,
+                            LR=self.optimizer.param_groups[0]['lr'])
+            
+        return np.mean(self.maps)

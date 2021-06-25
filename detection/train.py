@@ -1,13 +1,17 @@
 import argparse
 import os
 
-import pandas as pd
+from trainer import DetectionTrainer
+from config import TrainGlobalConfig as cfg
+from config import DefaultConfig
 import torch
 import torch.nn as nn
-from config import TrainGlobalConfig as cfg
-from trainer import DetectionTrainer
+import pandas as pd
+from utils import seed_everything
 
-if __name__ == "__main__":
+if __name__ == '__main__':
+    seed_everything(DefaultConfig.seed)
+
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--device", type=str, default=str(0))
@@ -18,12 +22,15 @@ if __name__ == "__main__":
     fold = args.fold
     debug = args.debug
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = device
+    os.environ['CUDA_VISIBLE_DEVICES'] = device
+    print(f"available GPU devices: {device}")
 
     optimizer = cfg.optimizer
     scheduler = cfg.scheduler
-    trainer = DetectionTrainer(
-        optimizer, scheduler, cfg, fold=fold, pretrained=True, DEBUG=debug
-    )
+    trainer = DetectionTrainer(optimizer, scheduler, cfg,
+                               fold=fold, pretrained=True,
+                               DEBUG=debug
+                               )
+
     n_epochs = cfg.n_epochs
     trainer.train(n_epochs)
