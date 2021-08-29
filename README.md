@@ -1,5 +1,7 @@
 # Covid-Detection-Radiographs
 
+<img width="992" alt="image" src="https://user-images.githubusercontent.com/18465332/131257778-b87289c4-ff88-4c3a-9dc6-1c008d2f8469.png">
+
 In this competition we are given the set with COVID patients' radiographs. The task is to detect suspicious areas of possible lung damage and classify images into 4 different classes: "negative", "typical", "indeterminate", "atypical".
 
 Detection part is implemented in `./detection`. 
@@ -10,7 +12,7 @@ The model
 
 Classification part is almost the same. Implemeted backbones are resnet, efficientnet or swin-transformer, however, any model from timm library can be chosen with slight modifications in `./classification/models.py` module.
 
-Pre-commit hook usage
+### Pre-commit hook usage
 Steps:
 ```
 pip install pre-commit
